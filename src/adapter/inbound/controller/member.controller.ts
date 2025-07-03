@@ -1,41 +1,27 @@
-import { Controller, Delete, Get, Param, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Param, Query } from '@nestjs/common';
 import { PaginationResponse } from 'src/adapter/inbound/dto/common/pagination.dto';
 import { PaginationQuery } from 'src/adapter/inbound/dto/pagination';
 import { SearchMember } from 'src/adapter/inbound/dto/request/member/search-member.dto';
 import { MemberResponseDto } from 'src/adapter/inbound/dto/response/member/member-response.dto';
-import { ApiSuccessResponse } from 'src/adapter/inbound/dto/swagger.decorator';
 import { MemberServiceInPort } from 'src/port/inbound/member-service.in-port';
+import { TypedRoute } from '@nestia/core';
 
-@ApiTags('Member')
 @Controller('member')
 export class MemberController {
   constructor(private readonly memberService: MemberServiceInPort) {}
 
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'TENANT_MASTER Tenant Member search' })
-  @ApiSuccessResponse(200, MemberResponseDto, { paginated: true })
-  // @UseGuards(JwtAuthGuard, MemberRolesGuard)
-  // @Roles(TenantMemberRole.ROLE_TENANT_MASTER)
-  @Get('/')
+  @TypedRoute.Get('/')
   async findAll(
-    // @MemberToken() tokenPayload: MemberAccessTokenPayload,
-    @Query() searchMember: SearchMember,
-    @Query() paginationQuery: PaginationQuery,
+    @Query() query: SearchMember & PaginationQuery,
   ): Promise<PaginationResponse<MemberResponseDto>> {
-    // searchMember.tenantId = tokenPayload.tenantId;
-    return await this.memberService.findAll(searchMember, paginationQuery);
+    return await this.memberService.findAll(
+      query as SearchMember,
+      query as PaginationQuery,
+    );
   }
 
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'TENANT_USER my member information' })
-  @ApiSuccessResponse(200, MemberResponseDto)
-  // @UseGuards(JwtAuthGuard, MemberRolesGuard)
-  // @Roles(TenantMemberRole.ROLE_TENANT_USER)
-  @Get(':id')
-  async findById(
-    @Param('id') id: string, // @MemberToken() tokenPayload: MemberAccessTokenPayload,
-  ): Promise<MemberResponseDto> {
+  @TypedRoute.Get(':id')
+  async findById(@Param('id') id: string): Promise<MemberResponseDto> {
     return await this.memberService.findById(Number(id));
   }
 }

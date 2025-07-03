@@ -13,6 +13,8 @@ import { AppModule } from 'src/app.module';
 import { logging } from 'src/log/logging';
 import { initSentry } from 'src/sentry';
 import { GlobalValidation } from 'src/validate/global-validation-pipe';
+import * as fs from 'fs';
+import * as swaggerUi from 'swagger-ui-express';
 
 async function bootstrap() {
   console.log('여기 안와??');
@@ -61,6 +63,11 @@ async function bootstrap() {
   });
 
   setSwagger(app);
+  // swagger.json 로드
+  const swaggerDocument = JSON.parse(fs.readFileSync('swagger.json', 'utf8'));
+
+  // Swagger UI 제공
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
   // Register global pipes, interceptors, filters
   app.useGlobalPipes(
