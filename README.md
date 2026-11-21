@@ -1,98 +1,120 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# nest-study-service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS와 TypeScript로 **회원(Account) API 서버의 기본 뼈대**를 만들며 공부하는 프로젝트입니다.
+Go로 백엔드를 개발해 온 경험을 바탕으로, NestJS에서 **헥사고날 아키텍처(Ports & Adapters)**와 실무에서 쓰는 공통 설정을 직접 구성해 보는 것이 목표입니다.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> 🚧 **진행 중인 프로젝트입니다.** 현재 진행 상황은 아래 [진행 상황](#진행-상황)에 정리했습니다.
 
-## Description
+<br>
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 기술 스택
 
-## Project setup
+| 구분 | 사용 기술 |
+|---|---|
+| 언어·프레임워크 | TypeScript 5.8, NestJS 11 (Express) |
+| DB·ORM | PostgreSQL, TypeORM, typeorm-transactional, SnakeNamingStrategy |
+| API 문서 | Nestia(`@TypedRoute`, Swagger 자동 생성), @nestjs/swagger |
+| 검증 | class-validator, class-transformer, typia |
+| 로깅·모니터링 | Winston(nest-winston), Sentry, @nestjs/terminus(헬스 체크) |
+| 보안 | Helmet, CORS 설정, JWT 인증 가드 |
+| 테스트 | Jest, Supertest |
+| 코드 품질 | ESLint, Prettier, Husky, lint-staged, commitlint |
+| 빌드 | SWC, pnpm |
 
-```bash
-$ pnpm install
+<br>
+
+## 아키텍처
+
+바깥(컨트롤러, DB)과 안쪽(비즈니스 로직)을 **포트(인터페이스)**로 분리했습니다.
+서비스는 저장소 구현체가 아니라 `MemberServiceOutPort`에만 의존하기 때문에, DB를 바꾸거나 테스트용 가짜 저장소로 교체하기 쉽습니다.
+
+```
+요청 → [Inbound Adapter]  MemberController
+           ↓ (MemberServiceInPort)
+       [Port / Service]   MemberService
+           ↓ (MemberServiceOutPort)
+       [Outbound Adapter] MemberRepository → PostgreSQL
 ```
 
-## Compile and run the project
-
-```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+```
+src
+├── adapter
+│   ├── inbound          # 컨트롤러, 요청·응답 DTO, 페이지네이션
+│   └── outbound         # 저장소 구현체 (TypeORM)
+├── port
+│   ├── inbound          # 서비스가 제공하는 기능 (InPort)
+│   ├── outbound         # 서비스가 필요로 하는 저장소 기능 (OutPort)
+│   ├── service          # 비즈니스 로직
+│   └── audit            # 회원 변경 이력 기록 (TypeORM Subscriber)
+├── domain               # 엔티티, enum, 공통 컬럼
+├── config               # 환경 설정, Swagger, TypeORM 설정
+├── exception            # 공통 에러 코드와 커스텀 예외
+├── log                  # Winston 로깅, 요청 로그 미들웨어, 예외 필터
+├── security             # JWT 인증 가드
+├── validate             # 전역 Validation Pipe
+└── module               # 모듈 조립 (InPort/OutPort ↔ 구현체 연결)
 ```
 
-## Run tests
+<br>
+
+## 주요 구현 내용
+
+- **포트·어댑터 분리**: 모듈에서 `{ provide: MemberServiceInPort, useClass: MemberService }`처럼 추상 클래스와 구현체를 연결
+- **회원 변경 이력(Audit)**: TypeORM `EntitySubscriber`로 회원이 생성·수정될 때 `member_audit` 테이블에 자동 기록
+- **요청 컨텍스트**: `cls-hooked`로 요청 정보를 저장해 어디서든 현재 요청에 접근
+- **공통 에러 처리**: HTTP 상태별 `ErrorCode`와 `CustomException`으로 에러 응답 형식 통일
+- **페이지네이션·정렬**: 목록 조회용 공통 DTO와 응답 형식
+- **Nestia 적용**: `@TypedRoute`로 컨트롤러 타입에서 Swagger 문서(`swagger.json`) 자동 생성
+- **환경별 로깅**: 개발 환경은 색상 로그, 운영 환경은 JSON 로그
+- **운영 대비 설정**: Helmet 보안 헤더, CORS, 요청 크기 제한, Sentry(로컬 제외), 헬스 체크 API
+- **커밋 규칙 자동화**: Husky로 커밋 전 lint 검사, 커밋 메시지에 브랜치 이름 자동 추가, 푸시 전 빌드 확인
+
+<br>
+
+## API
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| GET | `/account/member` | 회원 목록 조회 (검색 조건, 페이지네이션) |
+| GET | `/account/member/:id` | 회원 단건 조회 |
+| GET | `/account/health` | 헬스 체크 (DB 연결 확인) |
+
+- Swagger 문서: `/account/swagger`, `/docs`
+
+<br>
+
+## 실행 방법
 
 ```bash
-# unit tests
-$ pnpm run test
+# 패키지 설치
+pnpm install
 
-# e2e tests
-$ pnpm run test:e2e
+# 개발 서버 실행 (.env.development 사용)
+pnpm run start:dev
 
-# test coverage
-$ pnpm run test:cov
+# Swagger 문서 생성
+pnpm run nestia:swagger
+
+# 테스트
+pnpm run test
+pnpm run test:e2e
 ```
 
-## Deployment
+<br>
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 진행 상황
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- [x] 헥사고날 구조와 모듈 구성
+- [x] 공통 설정 (로깅, 에러 코드, Validation, Helmet, CORS, Sentry)
+- [x] 회원 조회 API 뼈대와 Nestia 적용
+- [x] 회원 변경 이력 Subscriber
+- [ ] TypeORM·PostgreSQL 연결 (설정은 작성, 현재 주석 처리)
+- [ ] 회원 등록·수정 API
+- [ ] JWT 로그인·토큰 발급
+- [ ] 단위 테스트, e2e 테스트 보강
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
+<br>
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 블로그
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+공부한 내용은 블로그에 정리하고 있습니다. 👉 https://pink1016.tistory.com/
